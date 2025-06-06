@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gizemli Labirent: Kalbine Giden Yol</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fce4ec; /* Açık pembe arka plan */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .game-container {
+            background-color: #fff;
+            border-radius: 1.5rem; /* Daha yuvarlak köşeler */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem; /* Daha geniş iç boşluk */
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .puzzle-input {
+            padding: 0.75rem 1rem;
+            border: 2px solid #f06292; /* Pembe çerçeve */
+            border-radius: 0.75rem;
+            width: calc(100% - 24px); /* Padding'i hesaba kat */
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        .btn {
+            background-image: linear-gradient(to right, #ff80ab, #f06292); /* Pembe gradyan */
+            color: white;
+            padding: 0.8rem 1.8rem;
+            border-radius: 0.75rem;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(240, 98, 146, 0.4);
+            border: none;
+            display: inline-block; /* Butonların daha iyi görünmesi için */
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(240, 98, 146, 0.6);
+        }
+        .feedback-message {
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .feedback-message.show {
+            opacity: 1;
+        }
+        .feedback-message.correct {
+            background-color: #e8f5e9; /* Açık yeşil */
+            color: #4caf50; /* Koyu yeşil */
+        }
+        .feedback-message.incorrect {
+            background-color: #ffebee; /* Açık kırmızı */
+            color: #f44336; /* Koyu kırmızı */
+        }
+        .puzzle-image-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 1rem;
+        }
+        .puzzle-image-piece {
+            width: 150px; /* Her parça için sabit genişlik */
+            height: 100px; /* Her parça için sabit yükseklik */
+            border: 2px solid #ccc;
+            cursor: grab;
+            transition: transform 0.2s ease;
+            background-size: cover; /* Resmi kapsayacak şekilde ölçekle */
+            background-position: center;
+            border-radius: 0.5rem;
+        }
+        /* Resim parçaları için mobil düzenleme */
+        @media (max-width: 640px) {
+            .puzzle-image-piece {
+                width: 100px; /* Mobil için daha küçük parçalar */
+                height: 70px;
+            }
+            .game-container {
+                padding: 1.5rem;
+            }
+            .btn {
+                padding: 0.6rem 1.2rem;
+                font-size: 1rem;
+            }
+            .puzzle-input {
+                font-size: 1rem;
+            }
+        }
+        .quiz-options button {
+            @apply btn w-full mb-2;
+            background-image: linear-gradient(to right, #ffc107, #ff9800); /* Turuncu gradyan */
+            box-shadow: 0 4px 10px rgba(255, 152, 0, 0.4);
+        }
+        .quiz-options button:hover {
+            box-shadow: 0 6px 15px rgba(255, 152, 0, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer" class="game-container">
+        <!-- Başlangıç Ekranı -->
+        <div id="startScreen" class="flex flex-col items-center">
+            <h1 class="text-4xl font-bold text-pink-600 mb-4">Gizemli Labirent: Kalbine Giden Yol</h1>
+            <p class="text-gray-700 text-lg mb-6">Sevgilimin kalbine giden yolu bul bakalım, içinde sürprizler gizli!</p>
+            <button id="startGameBtn" class="btn">Macera Başlasın!</button>
+        </div>
+
+        <!-- Oyun Ekranı (Bulmacalar burada gösterilecek) -->
+        <div id="gameScreen" class="hidden flex flex-col items-center">
+            <h2 id="puzzleTitle" class="text-3xl font-semibold text-pink-500 mb-4"></h2>
+            <p id="puzzleQuestion" class="text-gray-800 text-lg mb-6"></p>
+
+            <!-- Bulmaca Alanı -->
+            <div id="puzzleArea" class="w-full flex flex-col items-center gap-4">
+                <!-- Buraya bulmaca türüne göre içerik yüklenecek -->
+            </div>
+
+            <input type="text" id="puzzleInput" class="puzzle-input mb-4 hidden" placeholder="Cevabını buraya yaz...">
+            <div id="quizOptions" class="quiz-options flex flex-col w-full hidden"></div>
+            <button id="submitAnswerBtn" class="btn hidden">Cevabı Kontrol Et</button>
+            <div id="feedbackMessage" class="feedback-message w-full hidden"></div>
+        </div>
+
+        <!-- Bitiş Ekranı -->
+        <div id="endScreen" class="hidden flex flex-col items-center">
+            <h2 class="text-4xl font-bold text-pink-600 mb-6">Tebrikler, Kalbime Giden Yolu Buldun! ❤️</h2>
+            <p class="text-gray-800 text-lg mb-6">
+                Tüm bulmacaları çözdün! Şimdi gerçek dünyadaki sürpriz seni bekliyor.
+                <br><br>
+                Sürpriz: <strong class="text-pink-600">En sevdiğimiz kafenin köşesindeki saksının altındaki notu bul.</strong>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Tüm oyun DOM elemanlarını seçme
+        const startScreen = document.getElementById('startScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const endScreen = document.getElementById('endScreen');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const puzzleTitle = document.getElementById('puzzleTitle');
+        const puzzleQuestion = document.getElementById('puzzleQuestion');
+        const puzzleArea = document.getElementById('puzzleArea');
+        const puzzleInput = document.getElementById('puzzleInput');
+        const quizOptions = document.getElementById('quizOptions');
+        const submitAnswerBtn = document.getElementById('submitAnswerBtn');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+
+        // Oyun durumu değişkenleri
+        let currentPuzzleIndex = 0; // Mevcut bulmacanın indeksi
+        let selectedQuizAnswer = ''; // Seçilen quiz cevabı (eğer quiz ise)
+
+        // Bulmaca verileri
+        // Bu diziyi kendi ilişkinize özel anılar ve bilgilerle doldurmanız gerekiyor!
+        const puzzles = [
+            {
+                id: 'puzzle1',
+                type: 'scrambled_word',
+                title: 'İlk Adım',
+                question: 'İlk buluşmamızın yapıldığı yerin adını karıştırılmış halde bul: "KRPA"', // PARK
+                answer: 'PARK',
+                hint: 'Dört harfli ve bol yeşillikli bir yer...'
+            },
+            {
+                id: 'puzzle2',
+                type: 'image_puzzle',
+                title: 'Hatıra Mozaiği',
+                question: 'Bu fotoğrafı doğru sıraya koy. Parçaları sürükleyerek yerlerini değiştirebilirsin.',
+                // Resim parçaları için placeholder URL'ler kullanıldı. Kendi özel anılarınızdan bir fotoğrafı parçalara bölüp buraya yerleştirebilirsiniz.
+                // Örnek: 'https://placehold.co/150x100/A2D9CE/FFFFFF?text=1', 'https://placehold.co/150x100/82E0AA/FFFFFF?text=2', vb.
+                // Gerçek bir resim kullanacaksanız, resmi manuel olarak parçalara bölüp her parçanın URL'sini buraya eklemelisiniz.
+                images: [
+                    { src: 'https://placehold.co/150x100/F0B27A/FFFFFF?text=Foto+1', id: 'img1', order: 0 },
+                    { src: 'https://placehold.co/150x100/F0B27A/FFFFFF?text=Foto+2', id: 'img2', order: 1 },
+                    { src: 'https://placehold.co/150x100/F0B27A/FFFFFF?text=Foto+3', id: 'img3', order: 2 },
+                    { src: 'https://placehold.co/150x100/F0B27A/FFFFFF?text=Foto+4', id: 'img4', order: 3 },
+                    { src: 'https://placehold.co/150x100/F0B27A/FFFFFF?text=Foto+5', id: 'img5', order: 4 },
+                    { src: 'https://placehold.co/150x100/F0B27A/FFFFFF?text=Foto+6', id: 'img6', order: 5 }
+                ],
+                // Doğru sıra indexleri (0'dan başlayarak)
+                answer: '0,1,2,3,4,5'
+            },
+            {
+                id: 'puzzle3',
+                type: 'quiz',
+                title: 'En Sevdiğim...',
+                question: 'Benim en sevdiğim renk hangisi?',
+                options: ['Mavi', 'Kırmızı', 'Yeşil', 'Sarı'],
+                answer: 'Mavi',
+                hint: 'Genellikle gökyüzüyle ve denizle ilişkilendirilen bir renk.'
+            },
+            {
+                id: 'puzzle4',
+                type: 'numerical',
+                title: 'Özel Tarih',
+                question: 'İlişkimizin ilk yıl dönümü hangi gündü? (Sadece gün sayısı, örn: 15)',
+                answer: '14', // Örnek bir gün sayısı
+                hint: 'Bir aydaki gün sayısından bir eksik...'
+            }
+        ];
+
+        // Başlangıç düğmesine tıklama olayı
+        startGameBtn.addEventListener('click', startGame);
+        // Cevabı kontrol et düğmesine tıklama olayı
+        submitAnswerBtn.addEventListener('click', checkAnswer);
+
+        /**
+         * Oyunu başlatır, başlangıç ekranını gizler ve ilk bulmacayı gösterir.
+         */
+        function startGame() {
+            console.log('Oyun Başladı!');
+            startScreen.classList.add('hidden'); // Başlangıç ekranını gizle
+            gameScreen.classList.remove('hidden'); // Oyun ekranını göster
+            displayPuzzle(currentPuzzleIndex); // İlk bulmacayı göster
+        }
+
+        /**
+         * Belirtilen indeksteki bulmacayı ekranda gösterir.
+         * @param {number} index - Gösterilecek bulmacanın indeksi.
+         */
+        function displayPuzzle(index) {
+            console.log('Bulmaca gösteriliyor:', puzzles[index] ? puzzles[index].id : 'Bitiş Ekranı', 'index:', index);
+            // Eğer tüm bulmacalar çözüldüyse bitiş ekranını göster
+            if (index >= puzzles.length) {
+                showEndScreen();
+                return;
+            }
+
+            const puzzle = puzzles[index]; // Mevcut bulmacayı al
+
+            // Önceki bulmaca türüne ait elemanları temizle ve gizle
+            puzzleArea.innerHTML = '';
+            puzzleInput.classList.add('hidden');
+            quizOptions.classList.add('hidden');
+            submitAnswerBtn.classList.remove('hidden'); // Her bulmacada kontrol et butonu görünür olsun
+            hideFeedback(); // Geri bildirim mesajını gizle
+
+            // Başlık ve soruyu ayarla
+            puzzleTitle.textContent = `${index + 1}. Bulmaca: ${puzzle.title}`;
+            puzzleQuestion.textContent = puzzle.question;
+
+            // Bulmaca türüne göre farklı UI elemanları oluştur
+            switch (puzzle.type) {
+                case 'scrambled_word':
+                case 'numerical':
+                    puzzleInput.type = puzzle.type === 'numerical' ? 'number' : 'text'; // Sayısal veya metin girişi
+                    puzzleInput.value = ''; // Giriş alanını temizle
+                    puzzleInput.placeholder = 'Cevabını buraya yaz...';
+                    puzzleInput.classList.remove('hidden'); // Giriş alanını göster
+                    break;
+                case 'quiz':
+                    quizOptions.classList.remove('hidden'); // Quiz seçeneklerini göster
+                    quizOptions.innerHTML = ''; // Önceki seçenekleri temizle
+                    // Her bir seçenek için buton oluştur
+                    puzzle.options.forEach(option => {
+                        const button = document.createElement('button');
+                        button.textContent = option;
+                        button.classList.add('btn', 'w-full', 'mb-2', 'quiz-option-btn'); // Tailwind sınıfları ve özel sınıf
+                        button.setAttribute('data-answer', option); // Cevabı veri özniteliğine kaydet
+                        button.addEventListener('click', (e) => selectQuizOption(option, e)); // Tıklama olayı, 'e' parametresini ekledik
+                        quizOptions.appendChild(button);
+                    });
+                    // Quiz'de cevabı kontrol et butonu yerine seçeneklere tıklandığında cevap kontrol edilecek
+                    submitAnswerBtn.classList.add('hidden');
+                    break;
+                case 'image_puzzle':
+                    puzzleArea.classList.remove('hidden'); // Resim alanı zaten görünüyor
+                    renderImagePuzzle(puzzle.images); // Resim bulmacasını render et
+                    submitAnswerBtn.classList.remove('hidden'); // Cevabı kontrol et butonu görünür olsun
+                    break;
+            }
+        }
+
+        /**
+         * Quiz seçeneği tıklandığında çalışır.
+         * @param {string} option - Seçilen quiz cevabı.
+         * @param {Event} event - Tıklama olayı nesnesi.
+         */
+        function selectQuizOption(option, event) {
+            console.log('Quiz seçeneği seçildi:', option);
+            selectedQuizAnswer = option;
+            // Tüm quiz seçenek butonlarındaki 'selected' stilini kaldır
+            document.querySelectorAll('.quiz-option-btn').forEach(btn => {
+                btn.classList.remove('bg-purple-600', 'hover:bg-purple-700', 'border-purple-800');
+                btn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+            });
+            // Seçilen butona 'selected' stilini ekle
+            if (event && event.target) { // event ve event.target kontrolü ekledik
+                event.target.classList.add('bg-purple-600', 'hover:bg-purple-700', 'border-purple-800');
+                event.target.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+            }
+
+            // Quiz cevap seçiminden hemen sonra cevabı kontrol et
+            checkAnswer();
+        }
+
+        /**
+         * Mevcut bulmacanın cevabını kontrol eder.
+         */
+        function checkAnswer() {
+            const puzzle = puzzles[currentPuzzleIndex];
+            let isCorrect = false;
+            let userAnswer = '';
+
+            switch (puzzle.type) {
+                case 'scrambled_word':
+                case 'numerical':
+                    userAnswer = puzzleInput.value.trim().toUpperCase(); // Büyük harfe çevir
+                    isCorrect = (userAnswer === puzzle.answer.toUpperCase());
+                    break;
+                case 'quiz':
+                    userAnswer = selectedQuizAnswer.toUpperCase();
+                    isCorrect = (userAnswer === puzzle.answer.toUpperCase());
+                    break;
+                case 'image_puzzle':
+                    // Resim bulmacası için, mevcut sıranın doğru olup olmadığını kontrol et
+                    const currentOrder = Array.from(puzzleArea.children).map(img => img.dataset.originalOrder).join(',');
+                    console.log('Resim sırası kontrol ediliyor. Mevcut sıra:', currentOrder, 'Doğru sıra:', puzzle.answer);
+                    isCorrect = (currentOrder === puzzle.answer);
+                    break;
+            }
+            console.log('Cevap kontrol edildi. Kullanıcı cevabı:', userAnswer, 'Doğru cevap:', puzzle.answer, 'Doğru mu:', isCorrect);
+
+            if (isCorrect) {
+                showFeedback('Doğru bildin! Bir sonraki ipucuna geçiyorsun.', true);
+                // Kısa bir gecikmeden sonra bir sonraki bulmacaya geç
+                setTimeout(() => {
+                    currentPuzzleIndex++;
+                    displayPuzzle(currentPuzzleIndex);
+                }, 1500);
+            } else {
+                showFeedback('Yanlış cevap, tekrar dene. Belki ipucuna bakmak istersin!', false);
+            }
+        }
+
+        /**
+         * Geri bildirim mesajını gösterir.
+         * @param {string} message - Gösterilecek mesaj.
+         * @param {boolean} isCorrect - Cevabın doğru olup olmadığını belirten bayrak.
+         */
+        function showFeedback(message, isCorrect) {
+            feedbackMessage.textContent = message;
+            feedbackMessage.classList.remove('hidden', 'correct', 'incorrect'); // Önceki sınıfları kaldır
+            feedbackMessage.classList.add('show'); // Animasyon için göster sınıfı ekle
+            if (isCorrect) {
+                feedbackMessage.classList.add('correct');
+            } else {
+                feedbackMessage.classList.add('incorrect');
+            }
+        }
+
+        /**
+         * Geri bildirim mesajını gizler.
+         */
+        function hideFeedback() {
+            feedbackMessage.classList.remove('show');
+            feedbackMessage.classList.add('hidden');
+        }
+
+        /**
+         * Resim bulmacasını render eder ve sürükle-bırak mantığını ekler.
+         * @param {Array<Object>} images - Resim parçalarının verileri.
+         */
+        function renderImagePuzzle(images) {
+            puzzleArea.classList.add('puzzle-image-container'); // Kapsayıcı sınıfını ekle
+            // Resimleri karıştır
+            const shuffledImages = [...images].sort(() => Math.random() - 0.5);
+            console.log('Resimler karıştırıldı:', shuffledImages.map(img => img.id));
+
+            shuffledImages.forEach(imgData => {
+                const imgPiece = document.createElement('div');
+                imgPiece.classList.add('puzzle-image-piece');
+                imgPiece.style.backgroundImage = `url(${imgData.src})`;
+                imgPiece.draggable = true;
+                imgPiece.dataset.originalOrder = imgData.order; // Orijinal sırasını sakla
+                imgPiece.dataset.id = imgData.id; // Parçanın benzersiz ID'si
+                puzzleArea.appendChild(imgPiece);
+            });
+
+            // Sürükle-bırak olayları
+            let draggedItem = null;
+
+            puzzleArea.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('puzzle-image-piece')) {
+                    draggedItem = e.target;
+                    console.log('Sürükleme başladı:', draggedItem.dataset.id);
+                    setTimeout(() => e.target.classList.add('opacity-50'), 0);
+                }
+            });
+
+            puzzleArea.addEventListener('dragend', (e) => {
+                if (e.target.classList.contains('puzzle-image-piece')) {
+                    e.target.classList.remove('opacity-50');
+                    draggedItem = null;
+                    console.log('Sürükleme bitti.');
+                }
+            });
+
+            puzzleArea.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Varsayılanı engelle (drop'u etkinleştirir)
+            });
+
+            puzzleArea.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                if (e.target.classList.contains('puzzle-image-piece')) {
+                    e.target.classList.add('border-blue-500'); // Sürüklenen öğe üzerine geldiğinde görsel ipucu
+                }
+            });
+
+            puzzleArea.addEventListener('dragleave', (e) => {
+                if (e.target.classList.contains('puzzle-image-piece')) {
+                    e.target.classList.remove('border-blue-500');
+                }
+            });
+
+            puzzleArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (e.target.classList.contains('puzzle-image-piece') && draggedItem && draggedItem !== e.target) {
+                    const dropTarget = e.target;
+                    const container = puzzleArea; // puzzleArea, sürükle-bırak işleminin gerçekleştiği kapsayıcıdır.
+
+                    console.log('Bırakma gerçekleşti. Sürüklenen:', draggedItem.dataset.id, 'Bırakılan hedef:', dropTarget.dataset.id);
+
+                    // Geçici bir yer tutucu oluşturarak elementleri güvenli bir şekilde değiştirme
+                    const temp = document.createElement('div');
+                    container.insertBefore(temp, draggedItem);
+                    container.insertBefore(draggedItem, dropTarget);
+                    container.insertBefore(dropTarget, temp);
+                    container.removeChild(temp);
+                    console.log('Elementler değiştirildi.');
+                }
+                // Görsel ipucunu kaldır
+                document.querySelectorAll('.puzzle-image-piece').forEach(el => el.classList.remove('border-blue-500'));
+            });
+        }
+
+        /**
+         * Bitiş ekranını gösterir, oyun ekranını gizler.
+         */
+        function showEndScreen() {
+            console.log('Bitiş ekranı gösteriliyor!');
+            gameScreen.classList.add('hidden'); // Oyun ekranını gizle
+            endScreen.classList.remove('hidden'); // Bitiş ekranını göster
+        }
+
+        // Sayfa yüklendiğinde oyunun başlaması için herhangi bir özel işlem yok, sadece DOM hazır olduğunda başlama ekranı görünür.
+        // Kullanıcı "Macera Başlasın" butonuna tıkladığında oyun başlayacak.
+    </script>
+</body>
+</html>
